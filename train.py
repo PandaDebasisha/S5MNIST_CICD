@@ -42,6 +42,8 @@ def train():
     save_path = f'model_mnist_{timestamp}.pth'
     torch.save(model.state_dict(), save_path)
     print(f'Model saved as {save_path}')
+    total_params = sum(p.numel() for p in model.parameters())
+    print(f"Number of parameters: {total_params}")
     
 if __name__ == '__main__':
     train() 
