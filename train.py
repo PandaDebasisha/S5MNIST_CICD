@@ -5,6 +5,7 @@ from torchvision import datasets, transforms
 from model import MNISTModel
 from datetime import datetime
 import os
+from torchvision.models.mobilenet import mobilenet_v2
 
 def train():
     # Set device

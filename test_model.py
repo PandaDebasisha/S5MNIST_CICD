@@ -53,7 +53,7 @@ def test_model_accuracy():
             total += target.size(0)
     
     accuracy = 100. * correct / total
-    assert accuracy > 80, f"Accuracy is {accuracy}%, should be > 80%"
+    assert accuracy > 95, f"Accuracy is {accuracy}%, should be > 95%"
 
 if __name__ == '__main__':
     pytest.main([__file__]) 
