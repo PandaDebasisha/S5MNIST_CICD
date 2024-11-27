@@ -21,36 +21,31 @@ def get_augmented_transforms():
     
     # Rotation augmentation
     rotation_transform = transforms.Compose([
-        transforms.RandomRotation(15),  # Random rotation up to 15 degrees
+        transforms.RandomRotation(30),  # Random rotation up to 30 degrees
         transforms.ToTensor(),
         transforms.Normalize((0.1307,), (0.3081,))
     ])
     
-    # Affine augmentation
-    affine_transform = transforms.Compose([
-        transforms.RandomAffine(degrees=0, translate=(0.1, 0.1), scale=(0.9, 1.1)),
+    # Horizontal flip augmentation
+    hflip_transform = transforms.Compose([
+        transforms.RandomHorizontalFlip(p=1.0),  # Always flip horizontally
         transforms.ToTensor(),
         transforms.Normalize((0.1307,), (0.3081,))
     ])
     
-    # Gaussian noise augmentation
-    class AddGaussianNoise(object):
-        def __call__(self, tensor):
-            noise = torch.randn_like(tensor) * 0.1
-            return tensor + noise
-            
-    noise_transform = transforms.Compose([
+    # Vertical flip augmentation
+    vflip_transform = transforms.Compose([
+        transforms.RandomVerticalFlip(p=1.0),  # Always flip vertically
         transforms.ToTensor(),
-        AddGaussianNoise(),
         transforms.Normalize((0.1307,), (0.3081,))
     ])
     
-    return [basic_transform, rotation_transform, affine_transform, noise_transform]
+    return [basic_transform, rotation_transform, hflip_transform, vflip_transform]
 
 def save_augmentation_examples(dataset):
     """Save examples of augmented images"""
     transforms_list = get_augmented_transforms()
-    augmentation_names = ['Original', 'Rotation', 'Affine', 'Noise']
+    augmentation_names = ['Original', 'Rotation', 'X-Flip', 'Y-Flip']
     
     # Get 10 random samples
     indices = random.sample(range(len(dataset)), 10)
@@ -99,7 +94,7 @@ def train():
     model.train()
     for batch_idx, (data, target) in enumerate(train_loader):
         # Randomly choose an augmentation for this batch
-        if random.random() < 0.75:  # 75% chance to apply augmentation
+        if random.random() < 0:  # 75% chance to apply augmentation
             transform_idx = random.randint(1, len(transforms_list)-1)
             # Convert tensor back to PIL for transforms
             data = torch.stack([

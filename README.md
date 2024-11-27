@@ -103,16 +103,19 @@ The CNN architecture consists of:
 ## 🖼️ Data Augmentation
 
 The training process includes three augmentation techniques:
-1. **Random Rotation**: Rotates images up to ±15 degrees
-2. **Random Affine**: Applies random translation (±10%) and scaling (90-110%)
-3. **Gaussian Noise**: Adds random noise with standard deviation of 0.1
+1. **Random Rotation**: Rotates images up to ±30 degrees
+2. **Horizontal Flip (X-Flip)**: Mirrors the image horizontally
+3. **Vertical Flip (Y-Flip)**: Mirrors the image vertically
 
 Sample augmented images are saved in the `augmentation_samples/` directory during training.
 Each sample shows:
 - Original image
 - Rotation augmentation
-- Affine transformation
-- Gaussian noise addition
+- X-Flip transformation
+- Y-Flip transformation
+
+Note: While flipping digits might create unrealistic samples for some numbers (like 6 and 9), 
+this helps the model learn more robust features and handle various orientations.
 
 ## 🏷️ Model Versioning
 
