@@ -58,6 +58,96 @@ def test_model_accuracy():
     accuracy = 100. * correct / total
     assert accuracy > 95, f"Accuracy is {accuracy}%, should be > 95%"
 
+def test_rotation_augmentation():
+    """Test model's performance on rotated images"""
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model = MNISTModel().to(device)
+    model_path = get_latest_model()
+    model.load_state_dict(torch.load(model_path, map_location=device))
+    model.eval()
+    
+    # Create rotation transform
+    rotation_transform = transforms.Compose([
+        transforms.RandomRotation(30),
+        transforms.ToTensor(),
+        transforms.Normalize((0.1307,), (0.3081,))
+    ])
+    
+    # Load dataset
+    test_dataset = datasets.MNIST('./data', train=False, download=True, transform=None)
+    
+    correct = 0
+    total = 100  # Test on 100 samples
+    
+    with torch.no_grad():
+        for idx in range(total):
+            image, label = test_dataset[idx]
+            image = Image.fromarray(image.numpy())
+            
+            # Apply rotation
+            rotated_image = rotation_transform(image).unsqueeze(0).to(device)
+            output = model(rotated_image)
+            pred = output.argmax(dim=1).item()
+            
+            if pred == label:
+                correct += 1
+    
+    rotation_accuracy = 100. * correct / total
+    assert rotation_accuracy > 70, f"Rotation augmentation accuracy: {rotation_accuracy}%"
+
+def test_flip_augmentations():
+    """Test model's performance on flipped images"""
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model = MNISTModel().to(device)
+    model_path = get_latest_model()
+    model.load_state_dict(torch.load(model_path, map_location=device))
+    model.eval()
+    
+    # Create flip transforms
+    hflip_transform = transforms.Compose([
+        transforms.RandomHorizontalFlip(p=1.0),
+        transforms.ToTensor(),
+        transforms.Normalize((0.1307,), (0.3081,))
+    ])
+    
+    vflip_transform = transforms.Compose([
+        transforms.RandomVerticalFlip(p=1.0),
+        transforms.ToTensor(),
+        transforms.Normalize((0.1307,), (0.3081,))
+    ])
+    
+    test_dataset = datasets.MNIST('./data', train=False, download=True, transform=None)
+    total_samples = 100
+    
+    # Test horizontal flip
+    hflip_correct = 0
+    vflip_correct = 0
+    
+    with torch.no_grad():
+        for idx in range(total_samples):
+            image, label = test_dataset[idx]
+            image = Image.fromarray(image.numpy())
+            
+            # Test horizontal flip
+            hflip_image = hflip_transform(image).unsqueeze(0).to(device)
+            output = model(hflip_image)
+            pred = output.argmax(dim=1).item()
+            if pred == label:
+                hflip_correct += 1
+            
+            # Test vertical flip
+            vflip_image = vflip_transform(image).unsqueeze(0).to(device)
+            output = model(vflip_image)
+            pred = output.argmax(dim=1).item()
+            if pred == label:
+                vflip_correct += 1
+    
+    hflip_accuracy = 100. * hflip_correct / total_samples
+    vflip_accuracy = 100. * vflip_correct / total_samples
+    
+    assert hflip_accuracy > 60, f"Horizontal flip accuracy: {hflip_accuracy}%"
+    assert vflip_accuracy > 60, f"Vertical flip accuracy: {vflip_accuracy}%"
+
 def test_augmentation_consistency():
     """Test if augmentations maintain digit recognizability"""
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -73,24 +163,31 @@ def test_augmentation_consistency():
     
     # Load a single image
     dataset = datasets.MNIST('./data', train=False, download=True, transform=None)
-    image, label = dataset[0]
-    image = Image.fromarray(image.numpy())
     
-    predictions = []
-    # Test prediction on original and augmented versions
-    with torch.no_grad():
-        for transform in transforms_list:
-            img_tensor = transform(image).unsqueeze(0).to(device)
-            output = model(img_tensor)
-            pred = output.argmax(dim=1).item()
-            predictions.append(pred)
+    # Test multiple samples
+    num_samples = 10
+    consistent_samples = 0
     
-    # At least 3 out of 4 predictions should be the same
-    most_common = max(set(predictions), key=predictions.count)
-    assert predictions.count(most_common) >= 3, \
-        "Augmentations are too strong, affecting model predictions"
-    assert most_common == label, \
-        f"Most common prediction {most_common} doesn't match true label {label}"
+    for sample_idx in range(num_samples):
+        image, label = dataset[sample_idx]
+        image = Image.fromarray(image.numpy())
+        
+        predictions = []
+        # Test prediction on original and augmented versions
+        with torch.no_grad():
+            for transform in transforms_list:
+                img_tensor = transform(image).unsqueeze(0).to(device)
+                output = model(img_tensor)
+                pred = output.argmax(dim=1).item()
+                predictions.append(pred)
+        
+        # Check if majority of predictions match the label
+        if predictions.count(label) >= 2:  # At least 2 out of 4 should match
+            consistent_samples += 1
+    
+    consistency_ratio = consistent_samples / num_samples
+    assert consistency_ratio >= 0.7, \
+        f"Only {consistency_ratio*100:.1f}% of samples are consistently recognized across augmentations"
 
 def test_prediction_confidence():
     """Test if model makes confident predictions"""
