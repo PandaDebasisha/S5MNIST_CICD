@@ -85,7 +85,7 @@ def train():
     model = MNISTModel().to(device)
     criterion = nn.NLLLoss()
     optimizer = optim.SGD(model.parameters(),lr=0.01,momentum=0.9)
-    
+    total_batches = len(train_loader)
     # Train for 1 epoch
     model.train()
     for batch_idx, (data, target) in enumerate(train_loader):
@@ -95,9 +95,17 @@ def train():
         loss = criterion(output, target)
         loss.backward()
         optimizer.step()
-        
+
         if batch_idx % 100 == 0:
-            print(f'Batch {batch_idx}/{len(train_loader)}, Loss: {loss.item():.4f}')
+            print(f'Batch {batch_idx}/{total_batches} '
+                f'({100. * batch_idx / total_batches:.0f}%) '
+                f'Loss: {loss.item():.4f}')
+            
+             # Calculate accuracy for this batch
+            pred = output.argmax(dim=1)
+            correct = pred.eq(target).sum().item()
+            accuracy = 100. * correct / len(target)
+            print(f'Batch Accuracy: {accuracy:.2f}%')
     
     # Save model with timestamp
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
