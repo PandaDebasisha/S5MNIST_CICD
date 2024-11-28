@@ -102,7 +102,7 @@ def train():
     
     for batch_idx, (data, target) in enumerate(train_loader):
         # Apply augmentation with 75% probability
-        if random.random() < 0.05:
+        if random.random() < 0.01:
             transform_idx = random.randint(1, len(transforms_list)-1)
             # Convert tensor back to PIL for transforms
             data = torch.stack([
