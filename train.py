@@ -68,59 +68,33 @@ def save_augmentation_examples(dataset):
         save_augmented_samples(original, augmented_images, augmentation_names[1:])
 
 def train():
-    # Set device
+     # Set device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(f"Using device: {device}")
     
-    # Get transforms including augmentations
-    transforms_list = get_augmented_transforms()
+    # Load MNIST dataset
+    transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.1307,), (0.3081,))
+    ])
     
-    # Load MNIST dataset with basic transform
-    train_dataset = datasets.MNIST('./data', train=True, download=True, 
-                                 transform=None)
-    
-    # Save augmentation examples
-    save_augmentation_examples(train_dataset)
-    
-    # Now set the transform for training
-    train_dataset.transform = transforms_list[0]
-    train_loader = torch.utils.data.DataLoader(
-        train_dataset, 
-        batch_size=128,
-        shuffle=True,
-        num_workers=2 if device.type == 'cuda' else 0
-    )
+    train_dataset = datasets.MNIST('./data', train=True, download=True, transform=transform)
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=128, shuffle=True)
     
     # Initialize model
     model = MNISTModel().to(device)
     criterion = nn.NLLLoss()
-    optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9, weight_decay=1e-4)
-    
+    optimizer = optim.SGD(model.parameters(),lr=0.01,momentum=0.9)
+    total_batches = len(train_loader)
     # Train for 1 epoch
     model.train()
-    total_batches = len(train_loader)
-    
     for batch_idx, (data, target) in enumerate(train_loader):
-        # Apply augmentation with 75% probability
-        if random.random() < 0.01:
-            transform_idx = random.randint(1, len(transforms_list)-1)
-            # Convert tensor back to PIL for transforms
-            data = torch.stack([
-                transforms_list[transform_idx](
-                    TF.to_pil_image(img.squeeze())
-                ) for img in data
-            ])
-        
         data, target = data.to(device), target.to(device)
         optimizer.zero_grad()
-        
-        # Forward pass
         output = model(data)
         loss = criterion(output, target)
-        
-        # Backward pass
         loss.backward()
         optimizer.step()
+
         
         # Print progress
         if batch_idx % 100 == 0:
