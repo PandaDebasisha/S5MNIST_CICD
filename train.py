@@ -19,23 +19,23 @@ def get_augmented_transforms():
         transforms.Normalize((0.1307,), (0.3081,))
     ])
     
-    # Rotation augmentation
+    # Rotation augmentation (reduced angle for better accuracy)
     rotation_transform = transforms.Compose([
-        transforms.RandomRotation(30),  # Random rotation up to 30 degrees
+        transforms.RandomRotation(20),  # Reduced from 30 to 20 degrees
         transforms.ToTensor(),
         transforms.Normalize((0.1307,), (0.3081,))
     ])
     
     # Horizontal flip augmentation
     hflip_transform = transforms.Compose([
-        transforms.RandomHorizontalFlip(p=1.0),  # Always flip horizontally
+        transforms.RandomHorizontalFlip(p=1.0),
         transforms.ToTensor(),
         transforms.Normalize((0.1307,), (0.3081,))
     ])
     
     # Vertical flip augmentation
     vflip_transform = transforms.Compose([
-        transforms.RandomVerticalFlip(p=1.0),  # Always flip vertically
+        transforms.RandomVerticalFlip(p=1.0),
         transforms.ToTensor(),
         transforms.Normalize((0.1307,), (0.3081,))
     ])
@@ -70,31 +70,39 @@ def save_augmentation_examples(dataset):
 def train():
     # Set device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(f"Using device: {device}")
     
     # Get transforms including augmentations
     transforms_list = get_augmented_transforms()
     
     # Load MNIST dataset with basic transform
     train_dataset = datasets.MNIST('./data', train=True, download=True, 
-                                 transform=None)  # No transform initially
+                                 transform=None)
     
     # Save augmentation examples
     save_augmentation_examples(train_dataset)
     
     # Now set the transform for training
     train_dataset.transform = transforms_list[0]
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=128, shuffle=True)
+    train_loader = torch.utils.data.DataLoader(
+        train_dataset, 
+        batch_size=128,
+        shuffle=True,
+        num_workers=2 if device.type == 'cuda' else 0
+    )
     
     # Initialize model
     model = MNISTModel().to(device)
     criterion = nn.NLLLoss()
-    optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
+    optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9, weight_decay=1e-4)
     
     # Train for 1 epoch
     model.train()
+    total_batches = len(train_loader)
+    
     for batch_idx, (data, target) in enumerate(train_loader):
-        # Randomly choose an augmentation for this batch
-        if random.random() < 0:  # 75% chance to apply augmentation
+        # Apply augmentation with 75% probability
+        if random.random() < 0.05:
             transform_idx = random.randint(1, len(transforms_list)-1)
             # Convert tensor back to PIL for transforms
             data = torch.stack([
@@ -105,13 +113,26 @@ def train():
         
         data, target = data.to(device), target.to(device)
         optimizer.zero_grad()
+        
+        # Forward pass
         output = model(data)
         loss = criterion(output, target)
+        
+        # Backward pass
         loss.backward()
         optimizer.step()
         
+        # Print progress
         if batch_idx % 100 == 0:
-            print(f'Batch {batch_idx}/{len(train_loader)}, Loss: {loss.item():.4f}')
+            print(f'Batch {batch_idx}/{total_batches} '
+                  f'({100. * batch_idx / total_batches:.0f}%) '
+                  f'Loss: {loss.item():.4f}')
+            
+            # Calculate accuracy for this batch
+            pred = output.argmax(dim=1)
+            correct = pred.eq(target).sum().item()
+            accuracy = 100. * correct / len(target)
+            print(f'Batch Accuracy: {accuracy:.2f}%')
     
     # Save model with timestamp
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
